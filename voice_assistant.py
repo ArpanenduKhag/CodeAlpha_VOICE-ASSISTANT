@@ -1,65 +1,129 @@
-import speech_recognition as sr
-import spacy
-from datetime import datetime
-import webbrowser
 import os
+import webbrowser
+import wikipedia
+import pyttsx3
+import datetime
+import speech_recognition as sr
 
-# Initialize speech recognition
-recognizer = sr.Recognizer()
 
-# Initialize spaCy for natural language processing
-nlp = spacy.load("en_core_web_sm")
+engine = pyttsx3.init("sapi5")
+voices = engine.getProperty("voices")
+engine.setProperty("voice", voices[0].id)
 
 
-def process_text(text):
-    doc = nlp(text)
+def speak(audio):
+    engine.say(audio)
+    engine.runAndWait()
 
-    # Basic commands
-    if "open" in text:
-        # Extract the entity following "open"
-        entity = [token.text for token in doc if token.dep_ == "dobj"]
-        if entity:
-            webbrowser.open(f"https://www.google.com/search?q={entity[0]}")
-        else:
-            print("Could not identify what to open.")
 
-    elif "what is the time" in text:
-        current_time = datetime.now().strftime("%H:%M:%S")
-        print(f"The current time is {current_time}.")
+def wishMe():
+    hour = int(datetime.datetime.now().hour)
+    if hour >= 0 and hour < 12:
+        speak("Good Morning ")
 
-    elif "search" in text:
-        # Extract the query following "search"
-        query = " ".join([token.text for token in doc if token.dep_ == "dobj"])
-        if query:
-            webbrowser.open(f"https://www.google.com/search?q={query}")
-        else:
-            print("Could not identify what to search.")
-
-    elif "exit" in text or "quit" in text:
-        exit()
+    elif hour >= 12 and hour < 18:
+        speak("Good Afternoon ")
 
     else:
-        print("Command not recognized.")
+        speak("Good night")
+    speak(" I am Sahejogi, please tell me how can I help you")
 
 
-def listen_and_process():
+def takeCommand():
+    r = sr.Recognizer()
     with sr.Microphone() as source:
-        print("Listening...")
-        audio = recognizer.listen(source)
+        print("Listening.....")
+        speak("listening")
+        r.pause_threshold = 1
+        audio = r.listen(source)
 
-        try:
-            print("Recognizing...")
-            text = recognizer.recognize_google(audio)
-            print(f"You said: {text}")
-            process_text(text)
-        except sr.UnknownValueError:
-            print("Sorry, I could not understand what you said.")
-        except sr.RequestError as e:
-            print(
-                f"Could not request results from Google Speech Recognition service; {e}"
-            )
+    try:
+        print("Recogniseing.....")
+        speak("Recogniseing.....")
+        query = r.recognize_google(audio, language="en-in")
+        print(f"user said : { query}\n")
+
+    except Exception as e:
+        print("say that again.")
+        speak("say that again.")
+        return "None"
+    return query
+
+
+def open_application(application_name):
+    try:
+        os.system(f'start "" "{application_name}"')
+    except Exception as e:
+        print(f"Error opening {application_name}: {e}")
+        speak(f"Sorry, I encountered an error while opening {application_name}")
+
+
+def close_application(application_name):
+    try:
+        os.system(f"TASKKILL /F /IM {application_name}.exe")
+        speak(f"{application_name} has been closed")
+    except Exception as e:
+        print(f"Error closing {application_name}: {e}")
+        speak(f"Sorry, I encountered an error while closing {application_name}")
 
 
 if __name__ == "__main__":
+    wishMe()
     while True:
-        listen_and_process()
+        query = takeCommand().lower()
+
+        if "wikipedia" in query:
+            speak("searching wikkipedia....")
+            query = query.replace("wilipedia", "")
+            results = wikipedia.summary(query, sentences=2)
+            speak("According to wikipedia")
+            print(results)
+            speak(results)
+
+        elif "open youtube" in query:
+            webbrowser.open("youtube.com")
+
+        elif "open google" in query:
+            webbrowser.open("google.com")
+
+        elif "open stackoverflow" in query:
+            webbrowser.open("stackoverflow.com")
+
+        elif "close youtube" in query:
+            os.system(
+                "TASKKILL /F /IM brave.exe"
+            )  # Assumes that YouTube is opened in Chrome. Adjust accordingly.
+
+        elif "close google" in query:
+            os.system(
+                "TASKKILL /F /IM brave.exe"
+            )  # Assumes that Google is opened in Chrome. Adjust accordingly.
+
+        elif "close stackoverflow" in query:
+            os.system(
+                "TASKKILL /F /IM brave.exe"
+            )  # Assumes that Stack Overflow is opened in Chrome. Adjust accordingly.
+
+        elif "open" in query and "application" in query:
+            # Extract application name from the query
+            words = query.split()
+            app_index = words.index("open") + 1
+            application_name = " ".join(words[app_index:])
+            open_application(application_name)
+
+        elif "close" in query and "application" in query:
+            # Extract application name from the query
+            words = query.split()
+            app_index = words.index("close") + 1
+            application_name = " ".join(words[app_index:])
+            close_application(application_name)
+
+        elif "the time" in query:
+            strtime = datetime.datetime.now().strftime("%H:%M:%S")
+            speak(f"time is {strtime}\n")
+
+        elif "exit" in query or "quit" in query:
+            exit()
+
+        else:
+            print("Command not recognized.")
